@@ -1,4 +1,5 @@
-from typing import Tuple
+from typing import Tuple, Callable, List, Optional
+import random
 
 
 def bullscows(guess: str, secret: str) -> Tuple[int, int]:
@@ -19,3 +20,20 @@ def bullscows(guess: str, secret: str) -> Tuple[int, int]:
     cows = common_chars - bulls
 
     return bulls, cows
+
+
+def gameplay(ask: Callable[[str, Optional[List[str]]], str],
+             inform: Callable[[str, int, int], None],
+             words: List[str]) -> int:
+    secret_word = random.choice(words)
+    attempts = 0
+
+    while True:
+        guess = ask("Введите слово: ", words)
+        attempts += 1
+
+        bulls, cows = bullscows(guess, secret_word)
+        inform("Быки: {}, Коровы: {}", bulls, cows)
+
+        if bulls == len(secret_word):
+            return attempts

@@ -76,15 +76,16 @@ def main():
         return
 
     def ask_func(prompt: str, valid: List[str] = None) -> str:
-        while True:
-            user_input = input(cowsay.cowsay(message=prompt, cow=random.choice(cowsay.list_cows())))
-            if valid is None or not valid:
-                return user_input
-            if user_input in valid:
-                return user_input
-            print(cowsay.cowsay(message="Такого слова нет в списке. Попробуйте еще раз.",
-                                cow=random.choice(cowsay.list_cows())))
-            print("##########: ")
+        with open('new_cow.cow') as new_cow:
+            while True:
+                user_input = input(cowsay.cowsay(message=prompt, cowfile=cowsay.read_dot_cow(new_cow)))
+                if valid is None or not valid:
+                    return user_input
+                if user_input in valid:
+                    return user_input
+                print(cowsay.cowsay(message="Такого слова нет в списке. Попробуйте еще раз.",
+                                    cow=cowsay.get_cow('new_cow', cow_path='new_cow.cow')))
+                print("##########: ")
 
     def inform_func(format_string: str, bulls: int, cows: int) -> None:
         print(cowsay.cowsay(message=format_string.format(bulls, cows), cow=random.choice(cowsay.list_cows())))

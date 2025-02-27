@@ -1,0 +1,16 @@
+##
+## New cow for Joint Development
+##
+$the_cow = <<EOC;
+$thoughts
+ $thoughts
+  $thoughts
+           __________
+        __/          \__
+       /   ^      ^     \
+      |    (oo)         |
+      |     --          |
+       \______________  /
+              ||  ||
+              ||  ||
+EOC

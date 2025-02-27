@@ -2,6 +2,8 @@ from typing import Tuple, Callable, List, Optional
 import random
 import urllib.request
 import sys
+import cowsay
+
 
 def bullscows(guess: str, secret: str) -> Tuple[int, int]:
     bulls = sum(g == s for g, s in zip(guess, secret))
@@ -41,7 +43,6 @@ def gameplay(ask: Callable[[str, Optional[List[str]]], str],
 
 
 def read_dictionary(source: str) -> List[str]:
-
     if source.startswith(('http://', 'https://')):
         with urllib.request.urlopen(source) as response:
             content = response.read().decode('utf-8')
@@ -76,18 +77,22 @@ def main():
 
     def ask_func(prompt: str, valid: List[str] = None) -> str:
         while True:
-            user_input = input(prompt)
+            user_input = input(cowsay.cowsay(message=prompt, cow=random.choice(cowsay.list_cows())))
             if valid is None or not valid:
                 return user_input
             if user_input in valid:
                 return user_input
-            print("Такого слова нет в списке. Попробуйте еще раз.")
+            print(cowsay.cowsay(message="Такого слова нет в списке. Попробуйте еще раз.",
+                                cow=random.choice(cowsay.list_cows())))
+            print("##########: ")
 
     def inform_func(format_string: str, bulls: int, cows: int) -> None:
-        print(format_string.format(bulls, cows))
+        print(cowsay.cowsay(message=format_string.format(bulls, cows), cow=random.choice(cowsay.list_cows())))
+        print('###########:  ')
 
     attempts = gameplay(ask_func, inform_func, words_of_length)
     print(f"Поздравляем! Вы угадали слово за {attempts} попыток.")
+
 
 if __name__ == "__main__":
     main()

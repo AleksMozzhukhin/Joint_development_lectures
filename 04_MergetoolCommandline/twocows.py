@@ -6,6 +6,33 @@ import cowsay
 class CowsayCmd(cmd.Cmd):
     prompt = "twocows> "
 
+    def do_list_cows(self, arg):
+        """
+        list_cows
+        Выводит список доступных «коров».
+        Использование: list_cows
+        """
+        tokens = shlex.split(arg)
+        if tokens:
+            print("Использование: list_cows")
+            return
+        cows = cowsay.list_cows()
+        print("Доступные коровы:")
+        print("\n".join(cows))
+
+    def do_make_bubble(self, arg):
+        """
+        make_bubble <сообщение>
+        Выводит облачко с текстом.
+        Пример: make_bubble "Hello world!"
+        """
+        tokens = shlex.split(arg)
+        if not tokens:
+            print("Использование: make_bubble <сообщение>")
+            return
+        message = tokens[0]
+        bubble = cowsay.make_bubble(message)
+        print(bubble)
 
     def do_cowsay(self, arg):
         """
@@ -116,6 +143,36 @@ class CowsayCmd(cmd.Cmd):
         max_len = max(map(len, cow1_padded))
         for line1, line2 in zip(cow1_padded, cow2_padded):
             print(line1 + " " * (max_len - len(line1)) + line2)
+
+    def do_exit(self, arg):
+        """Выход из программы."""
+        return True
+
+    def do_quit(self, arg):
+        """Выход из программы."""
+        return True
+
+    def do_EOF(self, arg):
+        """Выход из программы"""
+
+    def complete_cowsay(self, text, line, begidx, endidx):
+        return self._complete_cow_name(text, line, begidx, endidx)
+
+    def complete_cowthink(self, text, line, begidx, endidx):
+        return self._complete_cow_name(text, line, begidx, endidx)
+
+    def _complete_cow_name(self, text, line, begidx, endidx):
+        try:
+            tokens = shlex.split(line[:begidx])
+        except ValueError:
+            tokens = line[:begidx].split()
+
+        if not tokens:
+            return []
+        if "=" in text:
+            return []
+        cows = cowsay.list_cows()
+        return [cow for cow in cows if cow.startswith(text)]
 
 
 CowsayCmd().cmdloop()

@@ -125,7 +125,17 @@ async def chat(reader, writer):
             parts = message.split(maxsplit=1)
             if len(parts) != 2:
                 writer.write("Ошибка: Используйте 'yield <текст сообщения>'\n".encode())
-                await writer.drain
+                await writer.drain()
+                continue
+
+            msg_text = parts[1]
+            cow_message = cowsay.cowsay(f"От {cow_name} всем: {msg_text}", cow=cow_name)
+            for name, queue in clients.items():
+                if name != cow_name:
+                    await queue.put(cow_message)
+            writer.write("Сообщение отправлено всем пользователям\n".encode())
+            await writer.drain()
+
         elif message == "quit":
             writer.write("До свидания!\n".encode())
             await writer.drain()

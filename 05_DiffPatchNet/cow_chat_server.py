@@ -66,7 +66,30 @@ async def chat(reader, writer):
             )
             writer.write(help_message.encode())
             await writer.drain()
+        elif message == "who":
+            if not clients:
+                response = "Нет зарегистрированных пользователей\n"
+            else:
+                response = "Зарегистрированные пользователи:\n"
+                for name in clients.keys():
+                    response += f"- {name}\n"
+            writer.write(response.encode())
+            await writer.drain()
 
+        elif message == "cows":
+            all_cows = set(cowsay.list_cows())
+            used_cows = set(clients.keys())
+            free_cows = all_cows - used_cows
+
+            if not free_cows:
+                response = "Все коровы заняты\n"
+            else:
+                response = "Свободные коровы:\n"
+                for cow in sorted(free_cows):
+                    response += f"- {cow}\n"
+
+            writer.write(response.encode())
+            await writer.drain()
         elif message == "quit":
             writer.write("До свидания!\n".encode())
             await writer.drain()

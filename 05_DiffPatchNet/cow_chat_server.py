@@ -90,6 +90,42 @@ async def chat(reader, writer):
 
             writer.write(response.encode())
             await writer.drain()
+        elif message.startswith("say"):
+            if not cow_name:
+                writer.write("Ошибка: Сначала зарегистрируйтесь с помощью 'login <название_коровы>'\n".encode())
+                await writer.drain()
+                continue
+
+            parts = message.split(maxsplit=2)
+            if len(parts) != 3:
+                writer.write("Ошибка: Используйте 'say <название_коровы> <текст сообщения>'\n".encode())
+                await writer.drain()
+                continue
+
+            target_cow = parts[1]
+            msg_text = parts[2]
+
+            if target_cow not in clients:
+                writer.write(f"Ошибка: Пользователь '{target_cow}' не найден\n".encode())
+                await writer.drain()
+                continue
+
+            cow_message = cowsay.cowsay(f"От {cow_name}: {msg_text}", cow=cow_name)
+            await clients[target_cow].put(cow_message)
+
+            writer.write(f"Сообщение отправлено пользователю '{target_cow}'\n".encode())
+            await writer.drain()
+
+        elif message.startswith("yield"):
+            if not cow_name:
+                writer.write("Ошибка: Сначала зарегистрируйтесь с помощью 'login <название_коровы>'\n".encode())
+                await writer.drain()
+                continue
+
+            parts = message.split(maxsplit=1)
+            if len(parts) != 2:
+                writer.write("Ошибка: Используйте 'yield <текст сообщения>'\n".encode())
+                await writer.drain
         elif message == "quit":
             writer.write("До свидания!\n".encode())
             await writer.drain()

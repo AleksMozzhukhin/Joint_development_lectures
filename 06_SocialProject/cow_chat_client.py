@@ -18,6 +18,10 @@ class CowClient(cmd.Cmd):
         self.running = False
         self.cow_name = None
 
+        # Кэш для списков коров и пользователей
+        self.available_cows = []
+        self.registered_users = []
+
         # Блокировки для предотвращения конфликтов чтения/записи
         self.command_lock = None
 
@@ -37,7 +41,6 @@ class CowClient(cmd.Cmd):
             self.command_lock = asyncio.Lock()
             self.message_queue = asyncio.Queue()
 
-            # Получаем приветственное сообщение
             welcome = await self.reader.readline()
             print(welcome.decode().strip())
 
@@ -58,9 +61,7 @@ class CowClient(cmd.Cmd):
 
                 message = data.decode().strip()
                 if message:
-                    # Проверяем, является ли это сообщением от коровы (многострочное)
                     if message.startswith(' ') or '(' in message[:10]:
-                        # Это, вероятно, сообщение от коровы, выводим его напрямую
                         print(f"\n{message}")
                         print(self.prompt, end='', flush=True)
                     else:
@@ -85,7 +86,6 @@ class CowClient(cmd.Cmd):
 
                 if wait_response:
                     try:
-                        # Ждем ответ с таймаутом
                         response = await asyncio.wait_for(self.message_queue.get(), 2.0)
                         return response
                     except asyncio.TimeoutError:
@@ -96,11 +96,36 @@ class CowClient(cmd.Cmd):
                 print(f"Ошибка при выполнении команды: {e}")
                 return None
 
+    async def get_cows_list(self):
+        """Получить список доступных коров с сервера"""
+        response = await self.execute_command("cows")
+        self.available_cows = []
+
+        if response:
+            lines = response.split('\n')
+            for line in lines:
+                if line.startswith('- '):
+                    self.available_cows.append(line[2:])
+
+        return self.available_cows
+
+    async def get_users_list(self):
+        """Получить список зарегистрированных пользователей с сервера"""
+        response = await self.execute_command("who")
+        self.registered_users = []
+
+        if response:
+            lines = response.split('\n')
+            for line in lines:
+                if line.startswith('- '):
+                    self.registered_users.append(line[2:])
+
+        return self.registered_users
+
     def run_async(self, coro):
         """Запустить корутину из синхронного кода"""
         future = asyncio.run_coroutine_threadsafe(coro, self.loop)
         try:
-            # Ждем результат с небольшим таймаутом
             return future.result(timeout=3.0)
         except asyncio.TimeoutError:
             print("Операция заняла слишком много времени")
@@ -125,6 +150,18 @@ class CowClient(cmd.Cmd):
         if response:
             print(response)
 
+    def complete_login(self, text, line, begidx, endidx):
+        """Автодополнение для команды login"""
+        cows = self.run_async(self.get_cows_list())
+
+        if not cows:
+            return []
+
+        if not text:
+            return cows
+        else:
+            return [cow for cow in cows if cow.startswith(text)]
+
     def do_say(self, arg):
         """Послать сообщение пользователю: say <название_коровы> <текст сообщения>"""
         if not self.logged_in:
@@ -139,6 +176,23 @@ class CowClient(cmd.Cmd):
         response = self.run_async(self.execute_command(f"say {arg}"))
         if response:
             print(response)
+
+    def complete_say(self, text, line, begidx, endidx):
+        """Автодополнение для команды say"""
+        parts = line.split()
+
+        # Если вводится имя пользователя (части: "say" и возможно часть имени)
+        if len(parts) <= 2:
+            users = self.run_async(self.get_users_list())
+
+            if not users:
+                return []
+
+            if not text:
+                return users
+            else:
+                return [user for user in users if user.startswith(text)]
+        return []
 
     def do_yield(self, arg):
         """Послать сообщение всем пользователям: yield <текст сообщения>"""
@@ -169,87 +223,69 @@ class CowClient(cmd.Cmd):
     def do_help(self, arg):
         """Показать список доступных команд"""
         if arg:
-            # Справка по конкретной команде
             super().do_help(arg)
         else:
-            # Отправляем команду help на сервер
             response = self.run_async(self.execute_command("help"))
             if response:
                 print(response)
 
     def do_quit(self, arg):
         """Отключиться от сервера"""
-        # Отправляем команду quit на сервер
         self.run_async(self.execute_command("quit", False))
 
         print("Выход из чата...")
         self.running = False
 
-        # Закрываем соединение
         if self.writer:
             self.writer.close()
 
         return True
 
-    # Алиасы
     do_exit = do_quit
     do_bye = do_quit
 
 
 def run_client(host, port):
     """Запустить клиент коровьего чата"""
-    # Создаем клиент
     client = CowClient(host, port)
 
-    # Запускаем асинхронный цикл в отдельном потоке
     def start_async_loop():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         client.loop = loop
 
-        # Подключаемся к серверу
         if not loop.run_until_complete(client.connect()):
             return
 
-        # Запускаем обработчик сообщений
         message_task = loop.create_task(client.message_receiver())
 
         try:
-            # Запускаем цикл событий
             loop.run_forever()
         except KeyboardInterrupt:
             pass
         finally:
-            # Отменяем задачу обработчика сообщений
             message_task.cancel()
 
-            # Закрываем соединение, если оно ещё открыто
             if client.writer and not client.writer.is_closing():
                 client.writer.close()
                 loop.run_until_complete(client.writer.wait_closed())
 
-            # Останавливаем цикл событий
             loop.close()
 
-    # Запускаем асинхронный цикл в отдельном потоке
     async_thread = threading.Thread(target=start_async_loop, daemon=True)
     async_thread.start()
 
     try:
-        # Даем немного времени, чтобы подключиться к серверу
         import time
         time.sleep(0.5)
 
-        # Запускаем интерактивный режим cmd
         if client.running:
             client.cmdloop()
 
-        # Останавливаем клиент
         client.running = False
     except KeyboardInterrupt:
         print("\nВыход из программы...")
     finally:
-        # Ждем завершения потока
         if client.loop and client.loop.is_running():
             client.loop.call_soon_threadsafe(client.loop.stop)
         async_thread.join(timeout=1.0)
